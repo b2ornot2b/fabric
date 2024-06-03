@@ -65,6 +65,8 @@ class Standalone:
     async def localChat(self, messages, host=''):
         from ollama import AsyncClient
         response = None
+        system = f'{self.model}'
+        user = os.environ['USER']
         if host:
             response = await AsyncClient(host=host).chat(model=self.model, messages=messages)
         else:
@@ -76,9 +78,16 @@ class Standalone:
         if self.args.output:
             with open(self.args.output, "w") as f:
                 f.write(response['message']['content'])
+        if self.args.session:
+            from .helper import Session
+            session = Session()
+            session.save_to_session(
+                system, user, response['message']['content'], self.args.session)
 
     async def localStream(self, messages, host=''):
         from ollama import AsyncClient
+        system = f'{self.model}'
+        user = os.environ['USER']
         buffer = ""
         if host:
             async for part in await AsyncClient(host=host).chat(model=self.model, messages=messages, stream=True):
@@ -91,6 +100,11 @@ class Standalone:
         if self.args.output:
             with open(self.args.output, "w") as f:
                 f.write(buffer)
+        if self.args.session:
+            from .helper import Session
+            session = Session()
+            session.save_to_session(
+                system, user, buffer, self.args.session)
         if self.args.copy:
             pyperclip.copy(buffer)
 
