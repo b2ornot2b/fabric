@@ -28,13 +28,13 @@ def main():
         const="analyzepaper.txt",
         default=None,
     )
-    parser.add_argument('--session', '-S',
+    parser.add_argument('--session', '-S', default=os.getenv('FABRIC_SESSION'),
                         help="Continue your previous conversation. Default is your previous conversation", nargs="?", const="default")
     parser.add_argument(
-        '--clearsession', help="deletes indicated session. Use 'all' to delete all sessions")
-    parser.add_argument('--sessionlog', help="View the log of a session")
+        '--clearsession', '-Srm', help="deletes indicated session. Use 'all' to delete all sessions")
+    parser.add_argument('--sessionlog', '-Sl', help="View the log of a session")
     parser.add_argument(
-        '--listsessions', help="List all sessions", action="store_true")
+        '--listsessions', '-Sls', help="List all sessions", action="store_true")
     parser.add_argument(
         "--gui", help="Use the GUI (Node and npm need to be installed)", action="store_true")
     parser.add_argument(
