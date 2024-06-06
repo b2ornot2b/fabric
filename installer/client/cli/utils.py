@@ -220,8 +220,8 @@ class Standalone:
         #)
         default_path = os.path.join(config_directory, 'patterns')
         pattern_dir = resolve_file(self.pattern,
-                            default_path,
-                            *self.user_pattern_paths)
+                        default_path,
+                        *(self.user_pattern_paths if self.user_pattern_paths else []))
         if pattern_dir is None:
             upp = f" or {', '.join(self.user_pattern_paths)}" if len(self.user_pattern_paths) else ''
             print(f"Error: {self.pattern} not found in {default_path}{upp}")
