@@ -1,4 +1,4 @@
-from .utils import Standalone, Update, Setup, Alias, run_electron_app
+from .utils import Standalone, Update, Setup, Alias, run_electron_app, parse_path
 import argparse
 import sys
 import os
@@ -30,6 +30,8 @@ def main():
     )
     parser.add_argument('--session', '-S', default=os.getenv('FABRIC_SESSION'),
                         help="Continue your previous conversation. Default is your previous conversation", nargs="?", const="default")
+    parser.add_argument('--patterndir', '-d', default=os.getenv('FABRIC_PATTERN_DIR'),
+                        help="Add pattern directory to pattern search path. Alternatively export FABRIC_PATTERN_DIR=~/.config/my-fabric-patterns:/opt/awesome-fabric-patterns", nargs="?", const="default")
     parser.add_argument(
         '--clearsession', '-Srm', help="deletes indicated session. Use 'all' to delete all sessions")
     parser.add_argument('--sessionlog', '-Sl', help="View the log of a session")
@@ -103,6 +105,7 @@ def main():
         Update()
         Alias()
         sys.exit()
+    user_pattern_paths = parse_path(args.patterndir) if args.patterndir else None
     if args.context:
         if not os.path.exists(os.path.join(config, "context.md")):
             print("Please create a context.md file in ~/.config/fabric")
@@ -147,16 +150,26 @@ def main():
         session = Session()
         session.list_sessions()
         sys.exit()
-    standalone = Standalone(args, args.pattern)
+    standalone = Standalone(args, args.pattern,
+                    user_pattern_paths=user_pattern_paths)
     if args.list:
-        try:
-            direct = sorted(os.listdir(config_patterns_directory))
-            for d in direct:
-                print(d)
-            sys.exit()
-        except FileNotFoundError:
-            print("No patterns found")
-            sys.exit()
+        path_search = [config_patterns_directory]
+        sections = {}
+        if user_pattern_paths:
+            path_search.extend(user_pattern_paths)
+
+        for path in path_search:
+            sections[path] = [ pattern
+                        for pattern in sorted(os.listdir(path))
+                             if os.path.exists(
+                                 os.path.join(path, pattern, 'system.md')) ]
+
+        for name, patterns in sections.items():
+            print(f'# {name}')
+            for pattern in patterns:
+                print(f'  - {pattern}')
+
+        sys.exit()
     if args.listmodels:
         gptmodels, localmodels, claudemodels, googlemodels = standalone.fetch_available_models()
         print("GPT Models:")

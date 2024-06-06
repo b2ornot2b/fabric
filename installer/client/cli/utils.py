@@ -18,7 +18,7 @@ env_file = os.path.join(config_directory, ".env")
 
 
 class Standalone:
-    def __init__(self, args, pattern="", env_file="~/.config/fabric/.env"):
+    def __init__(self, args, pattern="", env_file="~/.config/fabric/.env", user_pattern_paths=None):
         """        Initialize the class with the provided arguments and environment file.
 
         Args:
@@ -47,6 +47,7 @@ class Standalone:
         self.config_pattern_directory = config_directory
         self.pattern = pattern
         self.args = args
+        self.user_pattern_paths = user_pattern_paths
         self.model = getattr(args, 'model', None)
         if not self.model:
             self.model = os.environ.get('DEFAULT_MODEL', None)
@@ -214,9 +215,19 @@ class Standalone:
             FileNotFoundError: If the pattern file is not found.
         """
 
-        wisdomFilePath = os.path.join(
-            config_directory, f"patterns/{self.pattern}/system.md"
-        )
+        #wisdomFilePath = os.path.join(
+        #    config_directory, f"patterns/{self.pattern}/system.md"
+        #)
+        default_path = os.path.join(config_directory, 'patterns')
+        pattern_dir = resolve_file(self.pattern,
+                            default_path,
+                            *self.user_pattern_paths)
+        if pattern_dir is None:
+            upp = f" or {', '.join(self.user_pattern_paths)}" if len(self.user_pattern_paths) else ''
+            print(f"Error: {self.pattern} not found in {default_path}{upp}")
+            return
+
+        wisdomFilePath = os.path.join(pattern_dir, 'system.md')
         session_message = ""
         user = ""
         if self.args.session:
@@ -328,9 +339,19 @@ class Standalone:
             FileNotFoundError: If the specified pattern file is not found.
         """
 
-        wisdomFilePath = os.path.join(
-            config_directory, f"patterns/{self.pattern}/system.md"
-        )
+        #wisdomFilePath = os.path.join(
+        #    config_directory, f"patterns/{self.pattern}/system.md"
+        #)
+        default_path = os.path.join(config_directory, 'patterns')
+        pattern_dir = resolve_file(self.pattern,
+                        default_path,
+                        *(self.user_pattern_paths if self.user_pattern_paths else []))
+        if pattern_dir is None:
+            upp = f" or {', '.join(self.user_pattern_paths)}" if len(self.user_pattern_paths) else ''
+            print(f"Error: {self.pattern} not found in {default_path}{upp}")
+            return
+
+        wisdomFilePath = os.path.join(pattern_dir, 'system.md')
         user = input_data
         user_message = {"role": "user", "content": f"{input_data}"}
         wisdom_File = os.path.join(current_directory, wisdomFilePath)
@@ -909,3 +930,42 @@ def run_electron_app():
         subprocess.run(['npm', 'start'], check=True)
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while executing NPM commands: {e}")
+
+
+def parse_path(path):
+    """
+    Expands a PATH-like variable with contents like ~/.config/my-fabric-patterns:/opt/awesome-fabric-pattern
+    into a list of fully expanded paths.
+    """
+    components = [c.rstrip('/') for c in path.split(':')]
+    expanded_paths = []
+    for component in components:
+        if component.startswith('~'):
+            # Expand ~ to the user's home directory
+            component = os.path.join(os.path.expanduser(component[1:]), component[2:])
+        elif os.path.isabs(component):
+            # Leave absolute paths as is
+            pass
+        else:
+            # Expand relative paths using the current working directory
+            component = os.getcwd() + '/' + component
+        expanded_paths.append(os.path.normpath(component))
+    return expanded_paths
+
+
+def resolve_file(filename, *paths):
+    """
+    Resolve the absolute file path by looking up the filename in the given list of paths.
+
+    Args:
+        filename (str): The filename to look up.
+        *paths (list of str): A list of directory paths to search in.
+
+    Returns:
+        str: The absolute file path if found, or None if not found.
+    """
+    for path in paths:
+        filepath = os.path.join(path, filename)
+        if os.path.exists(filepath):
+            return filepath
+    return None
